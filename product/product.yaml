@@ -1,0 +1,10 @@
+_ > nanoagent.plugin.v0001.ProductConfig:
+tagline: Rebook appointments displaced by a location closure.
+summary: Allocate scarce mock calendar slots in a defined priority order.
+highlights:
+  - Respect appointment constraints and existing reservations.
+  - Verify the submitted assignments against the saved calendar.
+steps:
+  - Read affected appointments and open slots.
+  - Book eligible slots in priority order.
+  - Submit an outcome for every appointment.

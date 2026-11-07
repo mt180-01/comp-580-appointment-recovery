@@ -1,0 +1,42 @@
+_ > nanoagent.plugin.v0001.ManifestConfig:
+id: appointment-recovery
+name: Appointment Recovery
+version: 0.2.0
+status: ready
+spec: nanoagent.plugin/v0001
+
+runtime > nanoagent.plugin.v0001.RuntimeConfig:
+  type: mcp_stdio
+  command: [uv, run, --frozen, python, -m, plugin]
+
+permissions > nanoagent.plugin.v0001.PermissionsConfig:
+  network > nanoagent.plugin.v0001.NetworkConfig:
+    hosts: []
+  filesystem > nanoagent.plugin.v0001.FilesystemConfig:
+    write: [workspace]
+
+tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
+  check_workspace:
+    description: Validate and fingerprint this run's input dataset, and confirm the workspace has no earlier result.
+  list_appointments:
+    description: Read affected appointments and their constraints.
+  list_slots:
+    description: List currently unbooked slots.
+  book_slots:
+    description: Atomically reserve a batch of chosen slots, leaving the calendar unchanged if any booking fails.
+  book_slot:
+    description: Reserve one eligible slot for one affected appointment.
+
+tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
+  recover-appointments:
+    description: Rebook appointments canceled by a location closure.
+    runner: agent
+    tools: [list_appointments, list_slots, book_slots]
+    reference: check_workspace
+    instructions: |-
+      Copy disruption_id and the complete dataset from the task into every tool call. A non-null dataset supplies the affected appointments, slots, and existing bookings. A null dataset selects the closure-001 example. Call list_appointments and list_slots first. Use five steps total: read appointments, read slots, book the batch, submit, then a brief final answer.
+      Process every appointment in ascending order of priority (0 is highest), then original_start, then appointment_id.
+      All times are UTC. A slot is eligible when its service matches, its location is allowed, its start is at or after earliest_start, its end is at or before latest_end, and its duration is at least duration_minutes. A booking reserves the whole slot. Each slot ID is an independent unit of capacity.
+      Choose the eligible unbooked slot with the earliest start, breaking equal starts by lexicographically lowest slot_id. Add that choice to your booking batch and remove the slot from your working list of available slots. When no slot qualifies, record slot_id null and reason NO_ELIGIBLE_SLOT.
+      Call book_slots once with all chosen appointment_id and slot_id pairs in processing order. Use an empty bookings list when none can be booked, including an empty disruption. Wait for confirmation. Then call submit with results in processing order. Each row contains appointment_id, slot_id, and reason. Set reason to null for confirmed bookings.
+
